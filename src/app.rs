@@ -1,4 +1,4 @@
-use crate::cli::{Cli, ClockArgs, Command};
+use crate::cli::{Cli, ClockArgs, Command, ThemeArgs};
 use crate::modes;
 use std::error::Error;
 
@@ -9,6 +9,7 @@ pub enum AppCommand {
     Clock(ClockArgs),
     Stopwatch,
     Timer,
+    Theme(ThemeArgs),
 }
 
 pub fn run(cli: Cli) -> AppResult {
@@ -16,6 +17,7 @@ pub fn run(cli: Cli) -> AppResult {
         AppCommand::Clock(args) => modes::clock::run(args),
         AppCommand::Stopwatch => modes::stopwatch::run(),
         AppCommand::Timer => modes::timer::run(),
+        AppCommand::Theme(args) => modes::theme_demo::run(args),
     }
 }
 
@@ -24,6 +26,7 @@ pub fn resolve_command(cli: Cli) -> AppCommand {
         Some(Command::Clock(args)) => AppCommand::Clock(args),
         Some(Command::Stopwatch) => AppCommand::Stopwatch,
         Some(Command::Timer) => AppCommand::Timer,
+        Some(Command::Theme(args)) => AppCommand::Theme(args),
         None => AppCommand::Clock(ClockArgs::default()),
     }
 }
@@ -31,7 +34,8 @@ pub fn resolve_command(cli: Cli) -> AppCommand {
 #[cfg(test)]
 mod tests {
     use super::{AppCommand, resolve_command};
-    use crate::cli::{Cli, ClockArgs, Command};
+    use crate::cli::{Cli, ClockArgs, Command, ThemeArgs};
+    use crate::color_engine::ColorHarmonyMode;
 
     #[test]
     fn root_command_defaults_to_clock() {
@@ -63,6 +67,18 @@ mod tests {
         match resolve_command(cli) {
             AppCommand::Clock(args) => assert!(args.normal),
             command => panic!("expected clock command, got {command:?}"),
+        }
+
+        let cli = Cli {
+            command: Some(Command::Theme(ThemeArgs {
+                base: "#3b82f6".to_string(),
+                mode: ColorHarmonyMode::Triadic,
+            })),
+        };
+
+        match resolve_command(cli) {
+            AppCommand::Theme(args) => assert_eq!(args.base, "#3b82f6"),
+            command => panic!("expected theme command, got {command:?}"),
         }
     }
 }

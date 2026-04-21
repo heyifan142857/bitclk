@@ -1,19 +1,18 @@
-use crate::render::brick_text::{
-    DIGIT_HEIGHT, DIGIT_WIDTH, GROUP_GAP, HOUR_COLOR, MINUTE_COLOR, SECOND_COLOR, render_text,
-};
+use crate::render::brick_text::{DIGIT_HEIGHT, DIGIT_WIDTH, GROUP_GAP, render_text};
 use crate::render::{ClockRenderer, RenderBlock, Viewport};
+use crate::theme::Theme;
 use chrono::{NaiveTime, Timelike};
 
 #[derive(Debug, Default)]
 pub struct NormalClockRenderer;
 
 impl ClockRenderer for NormalClockRenderer {
-    fn render(&self, time: NaiveTime, viewport: Viewport) -> RenderBlock {
+    fn render(&self, time: NaiveTime, viewport: Viewport, theme: &Theme) -> RenderBlock {
         let scale = best_scale(viewport);
         let groups = [
-            (format!("{:02}", time.hour()), HOUR_COLOR),
-            (format!("{:02}", time.minute()), MINUTE_COLOR),
-            (format!("{:02}", time.second()), SECOND_COLOR),
+            (format!("{:02}", time.hour()), theme.primary),
+            (format!("{:02}", time.minute()), theme.secondary),
+            (format!("{:02}", time.second()), theme.accent),
         ];
 
         let group_lines: Vec<Vec<String>> = groups
@@ -54,13 +53,14 @@ fn best_scale(viewport: Viewport) -> usize {
 mod tests {
     use super::NormalClockRenderer;
     use crate::render::{ClockRenderer, Viewport};
+    use crate::theme::Theme;
     use chrono::NaiveTime;
 
     #[test]
     fn renders_large_clock_lines() {
         let renderer = NormalClockRenderer;
         let time = NaiveTime::from_hms_opt(9, 7, 3).expect("time should be valid");
-        let output = renderer.render(time, Viewport::new(80, 24));
+        let output = renderer.render(time, Viewport::new(80, 24), &Theme::default());
 
         assert_eq!(output.lines.len(), 5);
         assert!(output.lines[0].contains('\u{1b}'));
@@ -72,7 +72,7 @@ mod tests {
     fn scales_up_when_the_terminal_is_wide_enough() {
         let renderer = NormalClockRenderer;
         let time = NaiveTime::from_hms_opt(12, 34, 56).expect("time should be valid");
-        let output = renderer.render(time, Viewport::new(100, 24));
+        let output = renderer.render(time, Viewport::new(100, 24), &Theme::default());
 
         assert_eq!(output.lines.len(), 10);
     }

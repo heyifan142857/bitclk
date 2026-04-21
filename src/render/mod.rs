@@ -1,3 +1,4 @@
+use crate::theme::Theme;
 use chrono::NaiveTime;
 
 pub mod binary_clock;
@@ -28,7 +29,7 @@ impl RenderBlock {
 }
 
 pub trait ClockRenderer {
-    fn render(&self, time: NaiveTime, viewport: Viewport) -> RenderBlock;
+    fn render(&self, time: NaiveTime, viewport: Viewport, theme: &Theme) -> RenderBlock;
 }
 
 pub fn compose_screen(viewport: Viewport, body: &RenderBlock) -> String {

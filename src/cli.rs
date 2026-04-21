@@ -1,3 +1,4 @@
+use crate::color_engine::ColorHarmonyMode;
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
@@ -16,6 +17,7 @@ pub enum Command {
     Clock(ClockArgs),
     Stopwatch,
     Timer,
+    Theme(ThemeArgs),
 }
 
 #[derive(Debug, Clone, Args, Default)]
@@ -30,6 +32,20 @@ pub struct ClockArgs {
 
     #[arg(long, help = "Start the clock in normal mode")]
     pub normal: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ThemeArgs {
+    #[arg(value_name = "HEX", help = "Base color, for example #3b82f6")]
+    pub base: String,
+
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = ColorHarmonyMode::Triadic,
+        help = "Harmony mode used to derive the theme"
+    )]
+    pub mode: ColorHarmonyMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -51,6 +67,7 @@ impl ClockArgs {
 #[cfg(test)]
 mod tests {
     use super::{Cli, ClockArgs, Command, StartupView};
+    use crate::color_engine::ColorHarmonyMode;
     use clap::Parser;
 
     #[test]
@@ -98,5 +115,24 @@ mod tests {
         let args = ClockArgs::default();
 
         assert_eq!(args.startup_view(), StartupView::Binary);
+    }
+
+    #[test]
+    fn parses_theme_command() {
+        let cli = Cli::parse_from([
+            "bitclk",
+            "theme",
+            "#3b82f6",
+            "--mode",
+            "split-complementary",
+        ]);
+
+        match cli.command {
+            Some(Command::Theme(args)) => {
+                assert_eq!(args.base, "#3b82f6");
+                assert_eq!(args.mode, ColorHarmonyMode::SplitComplementary);
+            }
+            command => panic!("expected theme command, got {command:?}"),
+        }
     }
 }

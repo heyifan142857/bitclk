@@ -1,27 +1,11 @@
-use crossterm::style::{Color, Stylize};
+use crate::color::{Rgb, paint_foreground};
 
 pub const DIGIT_HEIGHT: usize = 5;
 pub const DIGIT_WIDTH: usize = 6;
 pub const DIGIT_GAP: &str = " ";
 pub const GROUP_GAP: &str = "    ";
 
-pub const HOUR_COLOR: Color = Color::Rgb {
-    r: 0xFF,
-    g: 0x99,
-    b: 0x99,
-};
-pub const MINUTE_COLOR: Color = Color::Rgb {
-    r: 0x99,
-    g: 0x66,
-    b: 0x99,
-};
-pub const SECOND_COLOR: Color = Color::Rgb {
-    r: 0xFF,
-    g: 0xCC,
-    b: 0xCC,
-};
-
-pub fn render_text(text: &str, color: Color, scale: usize) -> Vec<String> {
+pub fn render_text(text: &str, color: Rgb, scale: usize) -> Vec<String> {
     let digits: Vec<Vec<String>> = text
         .chars()
         .map(|digit| render_digit(digit, scale))
@@ -35,7 +19,7 @@ pub fn render_text(text: &str, color: Color, scale: usize) -> Vec<String> {
             .collect::<Vec<_>>()
             .join(DIGIT_GAP);
 
-        lines.push(format!("{}", plain_line.with(color)));
+        lines.push(paint_foreground(&plain_line, color));
     }
 
     lines

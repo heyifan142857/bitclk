@@ -1,7 +1,6 @@
-use crate::render::brick_text::{
-    DIGIT_HEIGHT, HOUR_COLOR, MINUTE_COLOR, SECOND_COLOR, render_text, rendered_text_width,
-};
+use crate::render::brick_text::{DIGIT_HEIGHT, render_text, rendered_text_width};
 use crate::render::{ClockRenderer, RenderBlock, Viewport};
+use crate::theme::Theme;
 use chrono::{NaiveTime, Timelike};
 
 const BINARY_WIDTH: usize = 6;
@@ -11,16 +10,16 @@ const ROWS: usize = 3;
 pub struct BinaryClockRenderer;
 
 impl ClockRenderer for BinaryClockRenderer {
-    fn render(&self, time: NaiveTime, viewport: Viewport) -> RenderBlock {
+    fn render(&self, time: NaiveTime, viewport: Viewport, theme: &Theme) -> RenderBlock {
         let groups = binary_groups(time);
         let scale = best_scale(viewport);
         let spacer = spacer_lines(scale);
         let mut lines = Vec::with_capacity(total_height(scale));
 
         for (index, (digits, color)) in [
-            (&groups[0], HOUR_COLOR),
-            (&groups[1], MINUTE_COLOR),
-            (&groups[2], SECOND_COLOR),
+            (&groups[0], theme.primary),
+            (&groups[1], theme.secondary),
+            (&groups[2], theme.accent),
         ]
         .into_iter()
         .enumerate()
@@ -72,6 +71,7 @@ fn total_height(scale: usize) -> usize {
 mod tests {
     use super::{BinaryClockRenderer, binary_groups};
     use crate::render::{ClockRenderer, Viewport};
+    use crate::theme::Theme;
     use chrono::NaiveTime;
 
     #[test]
@@ -88,7 +88,7 @@ mod tests {
     fn renders_binary_clock_in_the_same_brick_theme() {
         let renderer = BinaryClockRenderer::default();
         let time = NaiveTime::from_hms_opt(13, 5, 9).expect("time should be valid");
-        let output = renderer.render(time, Viewport::new(80, 24));
+        let output = renderer.render(time, Viewport::new(80, 24), &Theme::default());
 
         assert_eq!(output.lines.len(), 17);
         assert!(output.lines[0].contains('\u{1b}'));
