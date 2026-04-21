@@ -1,6 +1,7 @@
 use chrono::NaiveTime;
 
 pub mod binary_clock;
+pub mod brick_text;
 pub mod normal_clock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -17,13 +18,12 @@ impl Viewport {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderBlock {
-    pub title: &'static str,
     pub lines: Vec<String>,
 }
 
 impl RenderBlock {
-    pub fn new(title: &'static str, lines: Vec<String>) -> Self {
-        Self { title, lines }
+    pub fn new(lines: Vec<String>) -> Self {
+        Self { lines }
     }
 }
 
@@ -31,17 +31,11 @@ pub trait ClockRenderer {
     fn render(&self, time: NaiveTime, viewport: Viewport) -> RenderBlock;
 }
 
-pub fn compose_screen(viewport: Viewport, body: &RenderBlock, footer: &str) -> String {
-    let mut lines = vec!["bitclk".to_string(), body.title.to_string(), String::new()];
-    lines.extend(body.lines.iter().cloned());
-    lines.push(String::new());
-    lines.push(footer.to_string());
-
-    if block_fits(viewport, &lines) {
-        layout_lines(viewport, &lines)
+pub fn compose_screen(viewport: Viewport, body: &RenderBlock) -> String {
+    if block_fits(viewport, &body.lines) {
+        layout_lines(viewport, &body.lines)
     } else {
         let fallback = vec![
-            "bitclk".to_string(),
             "terminal too small".to_string(),
             "resize to keep the clock readable".to_string(),
         ];
@@ -85,9 +79,32 @@ fn center_line(line: &str, width: usize) -> String {
 }
 
 fn truncate_to_width(line: &str, width: usize) -> String {
+    if line.contains('\u{1b}') {
+        return line.to_string();
+    }
+
     line.chars().take(width).collect()
 }
 
 fn line_width(line: &str) -> usize {
-    line.chars().count()
+    let mut width = 0;
+    let mut chars = line.chars().peekable();
+
+    while let Some(character) = chars.next() {
+        if character == '\u{1b}' && matches!(chars.peek(), Some('[')) {
+            chars.next();
+
+            for codepoint in chars.by_ref() {
+                if ('@'..='~').contains(&codepoint) {
+                    break;
+                }
+            }
+
+            continue;
+        }
+
+        width += 1;
+    }
+
+    width
 }

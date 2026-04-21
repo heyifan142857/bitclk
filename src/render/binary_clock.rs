@@ -1,95 +1,100 @@
+use crate::render::brick_text::{
+    DIGIT_HEIGHT, HOUR_COLOR, MINUTE_COLOR, SECOND_COLOR, render_text, rendered_text_width,
+};
 use crate::render::{ClockRenderer, RenderBlock, Viewport};
 use chrono::{NaiveTime, Timelike};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum BinaryGlyphStyle {
-    Digits,
-}
+const BINARY_WIDTH: usize = 6;
+const ROWS: usize = 3;
 
-#[derive(Debug, Clone, Copy)]
-pub struct BinaryClockRenderer {
-    style: BinaryGlyphStyle,
-}
-
-impl Default for BinaryClockRenderer {
-    fn default() -> Self {
-        Self {
-            style: BinaryGlyphStyle::Digits,
-        }
-    }
-}
+#[derive(Debug, Default, Clone, Copy)]
+pub struct BinaryClockRenderer;
 
 impl ClockRenderer for BinaryClockRenderer {
-    fn render(&self, time: NaiveTime, _viewport: Viewport) -> RenderBlock {
-        RenderBlock::new(
-            "binary clock",
-            vec![
-                self.render_row("HH", time.hour(), 5),
-                self.render_row("MM", time.minute(), 6),
-                self.render_row("SS", time.second(), 6),
-                "layout: direct binary HH / MM / SS".to_string(),
-            ],
-        )
-    }
-}
+    fn render(&self, time: NaiveTime, viewport: Viewport) -> RenderBlock {
+        let groups = binary_groups(time);
+        let scale = best_scale(viewport);
+        let spacer = spacer_lines(scale);
+        let mut lines = Vec::with_capacity(total_height(scale));
 
-impl BinaryClockRenderer {
-    fn render_row(&self, label: &str, value: u32, width: usize) -> String {
-        format!("{label} | {}  ({value:02})", self.render_bits(value, width))
-    }
-
-    fn render_bits(&self, value: u32, width: usize) -> String {
-        (0..width)
-            .rev()
-            .map(|shift| {
-                let bit = ((value >> shift) & 1) as u8;
-                self.style.render_bit(bit)
-            })
-            .collect::<Vec<_>>()
-            .join(" ")
-    }
-}
-
-impl BinaryGlyphStyle {
-    fn render_bit(self, bit: u8) -> &'static str {
-        match self {
-            Self::Digits => {
-                if bit == 1 {
-                    "1"
-                } else {
-                    "0"
-                }
+        for (index, (digits, color)) in [
+            (&groups[0], HOUR_COLOR),
+            (&groups[1], MINUTE_COLOR),
+            (&groups[2], SECOND_COLOR),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if index > 0 {
+                lines.extend(std::iter::repeat_n(String::new(), spacer));
             }
+
+            lines.extend(render_text(digits, color, scale));
+        }
+
+        RenderBlock::new(lines)
+    }
+}
+
+fn binary_groups(time: NaiveTime) -> [String; ROWS] {
+    [
+        format!("{:0width$b}", time.hour(), width = BINARY_WIDTH),
+        format!("{:0width$b}", time.minute(), width = BINARY_WIDTH),
+        format!("{:0width$b}", time.second(), width = BINARY_WIDTH),
+    ]
+}
+
+fn best_scale(viewport: Viewport) -> usize {
+    let width = viewport.width as usize;
+    let height = viewport.height as usize;
+    let sample_width = rendered_text_width("000000", 1);
+    let max_by_width = width / sample_width.max(1);
+    let max_by_height = height / DIGIT_HEIGHT.max(1);
+
+    for scale in (1..=max_by_width.min(max_by_height).max(1)).rev() {
+        if rendered_text_width("000000", scale) <= width && total_height(scale) <= height {
+            return scale;
         }
     }
+
+    1
+}
+
+fn spacer_lines(scale: usize) -> usize {
+    scale
+}
+
+fn total_height(scale: usize) -> usize {
+    DIGIT_HEIGHT * ROWS * scale + spacer_lines(scale) * (ROWS - 1)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::BinaryClockRenderer;
+    use super::{BinaryClockRenderer, binary_groups};
     use crate::render::{ClockRenderer, Viewport};
     use chrono::NaiveTime;
 
     #[test]
-    fn renders_direct_binary_rows() {
+    fn formats_every_group_to_six_bits() {
+        let time = NaiveTime::from_hms_opt(13, 5, 9).expect("time should be valid");
+        let output = binary_groups(time);
+
+        assert_eq!(output[0], "001101");
+        assert_eq!(output[1], "000101");
+        assert_eq!(output[2], "001001");
+    }
+
+    #[test]
+    fn renders_binary_clock_in_the_same_brick_theme() {
         let renderer = BinaryClockRenderer::default();
         let time = NaiveTime::from_hms_opt(13, 5, 9).expect("time should be valid");
         let output = renderer.render(time, Viewport::new(80, 24));
 
-        assert_eq!(output.title, "binary clock");
-        assert_eq!(output.lines[0], "HH | 0 1 1 0 1  (13)");
-        assert_eq!(output.lines[1], "MM | 0 0 0 1 0 1  (05)");
-        assert_eq!(output.lines[2], "SS | 0 0 1 0 0 1  (09)");
-    }
-
-    #[test]
-    fn uses_fixed_bit_widths_for_each_row() {
-        let renderer = BinaryClockRenderer::default();
-        let time = NaiveTime::from_hms_opt(23, 59, 59).expect("time should be valid");
-        let output = renderer.render(time, Viewport::new(80, 24));
-
-        assert!(output.lines[0].contains("1 0 1 1 1"));
-        assert!(output.lines[1].contains("1 1 1 0 1 1"));
-        assert!(output.lines[2].contains("1 1 1 0 1 1"));
+        assert_eq!(output.lines.len(), 17);
+        assert!(output.lines[0].contains('\u{1b}'));
+        assert!(output.lines[0].contains("██████"));
+        assert!(output.lines.iter().any(|line| line.contains("██  ██")));
+        assert_eq!(output.lines[5], "");
+        assert_eq!(output.lines[11], "");
     }
 }

@@ -15,7 +15,6 @@ use std::io::{self, Write};
 use std::time::Duration;
 
 const EVENT_POLL_INTERVAL: Duration = Duration::from_millis(200);
-const FOOTER_HINT: &str = "q quit  tab toggle  b binary  n normal";
 
 pub fn run(args: ClockArgs) -> AppResult {
     ClockMode::new(args.startup_view()).run()
@@ -32,13 +31,6 @@ impl ClockView {
         match self {
             Self::Binary => Self::Normal,
             Self::Normal => Self::Binary,
-        }
-    }
-
-    fn label(self) -> &'static str {
-        match self {
-            Self::Binary => "binary",
-            Self::Normal => "normal",
         }
     }
 }
@@ -109,10 +101,8 @@ impl ClockMode {
     }
 
     fn draw(&self, stdout: &mut impl Write, time: NaiveTime, viewport: Viewport) -> io::Result<()> {
-        let renderer = self.renderer();
-        let body = renderer.render(time, viewport);
-        let footer = format!("mode: {}  {FOOTER_HINT}", self.view.label());
-        let frame = compose_screen(viewport, &body, &footer);
+        let body = self.renderer().render(time, viewport);
+        let frame = compose_screen(viewport, &body);
 
         execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
         stdout.write_all(frame.as_bytes())?;
@@ -175,7 +165,7 @@ fn is_key_press(kind: KeyEventKind) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{ClockMode, ClockView};
+    use super::{ClockMode, ClockView, LoopControl};
     use crate::cli::StartupView;
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 
@@ -183,6 +173,59 @@ mod tests {
     fn startup_view_maps_to_clock_mode() {
         let mode = ClockMode::new(StartupView::Normal);
 
+        assert_eq!(mode.view, ClockView::Normal);
+    }
+
+    #[test]
+    fn q_exits_clock_mode() {
+        let mut mode = ClockMode::new(StartupView::Binary);
+        let key = KeyEvent {
+            code: KeyCode::Char('q'),
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+
+        let control = mode.handle_key(key);
+
+        assert!(matches!(control, LoopControl::Break));
+    }
+
+    #[test]
+    fn b_switches_to_binary_view() {
+        let mut mode = ClockMode::new(StartupView::Normal);
+        let key = KeyEvent {
+            code: KeyCode::Char('b'),
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+
+        let control = mode.handle_key(key);
+
+        assert!(matches!(
+            control,
+            LoopControl::Continue { view_changed: true }
+        ));
+        assert_eq!(mode.view, ClockView::Binary);
+    }
+
+    #[test]
+    fn n_switches_to_normal_view() {
+        let mut mode = ClockMode::new(StartupView::Binary);
+        let key = KeyEvent {
+            code: KeyCode::Char('n'),
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+
+        let control = mode.handle_key(key);
+
+        assert!(matches!(
+            control,
+            LoopControl::Continue { view_changed: true }
+        ));
         assert_eq!(mode.view, ClockView::Normal);
     }
 
@@ -196,8 +239,12 @@ mod tests {
             state: KeyEventState::NONE,
         };
 
-        let _ = mode.handle_key(key);
+        let control = mode.handle_key(key);
 
+        assert!(matches!(
+            control,
+            LoopControl::Continue { view_changed: true }
+        ));
         assert_eq!(mode.view, ClockView::Normal);
     }
 }
