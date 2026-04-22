@@ -2,6 +2,12 @@
 name = "bitclk"
 version = "0.1.0"
 edition = "2024"
+description = "A terminal binary clock with runtime toggle between binary and normal modes"
+license = "MIT"
+repository = "https://github.com/heyifan142857/bitclk"
+readme = "README.md"
+keywords = ["clock", "binary", "cli", "terminal"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 chrono = "0.4.42"
