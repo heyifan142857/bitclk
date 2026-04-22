@@ -16,7 +16,7 @@
 ## Install
 
 ```bash
-cargo install --path .
+cargo install bitclk
 ```
 
 Or run locally:
