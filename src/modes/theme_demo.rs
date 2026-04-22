@@ -1,12 +1,13 @@
 use crate::app::AppResult;
 use crate::cli::ThemeArgs;
 use crate::color::{Rgb, contrast_ratio, paint_sample};
+use crate::color_engine::ColorHarmonyMode;
 use crate::theme::Theme;
 
-pub fn run(args: ThemeArgs) -> AppResult {
+pub fn run(args: ThemeArgs, mode: ColorHarmonyMode) -> AppResult {
     let base = Rgb::from_hex(&args.base)?;
-    let theme = Theme::from_base(base, args.mode);
-    let mode = args.mode.to_string();
+    let theme = Theme::from_base(base, mode);
+    let mode = mode.to_string();
 
     print_theme_demo(base, &mode, theme);
     Ok(())

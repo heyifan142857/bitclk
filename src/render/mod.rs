@@ -3,7 +3,6 @@ use chrono::NaiveTime;
 
 pub mod binary_clock;
 pub mod brick_text;
-pub mod normal_clock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Viewport {
