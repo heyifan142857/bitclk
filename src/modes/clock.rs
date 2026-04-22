@@ -140,6 +140,10 @@ impl ClockMode {
                     self.renderer.set_base(ClockBase::Hexadecimal);
                     redraw()
                 }
+                's' => {
+                    self.renderer.cycle_binary_style();
+                    redraw()
+                }
                 't' => {
                     self.cycle_theme();
                     redraw()
@@ -151,8 +155,12 @@ impl ClockMode {
                 _ => no_redraw(),
             },
             KeyCode::Tab => {
-                self.renderer.toggle_orientation();
-                redraw()
+                if self.renderer.supports_orientation() {
+                    self.renderer.toggle_orientation();
+                    redraw()
+                } else {
+                    no_redraw()
+                }
             }
             _ => no_redraw(),
         }
@@ -184,7 +192,11 @@ impl ClockMode {
                 theme.foreground,
             ),
             paint_foreground(
-                &format!("layout: {}", self.renderer.orientation().label()),
+                &format!("layout: {}", self.renderer.layout_label()),
+                theme.foreground,
+            ),
+            paint_foreground(
+                &format!("binary style: {}", self.renderer.binary_style().label()),
                 theme.foreground,
             ),
             paint_foreground(&self.runtime_theme.help_label(), theme.muted),
@@ -192,7 +204,11 @@ impl ClockMode {
             paint_foreground("b    binary", theme.foreground),
             paint_foreground("o    octal", theme.foreground),
             paint_foreground("x    hexadecimal", theme.foreground),
-            paint_foreground("tab  toggle vertical / horizontal layout", theme.foreground),
+            paint_foreground("s    cycle binary style", theme.foreground),
+            paint_foreground(
+                &format!("tab  {}", self.renderer.tab_help_label()),
+                theme.foreground,
+            ),
             paint_foreground(
                 &format!("t    {}", self.runtime_theme.cycle_label()),
                 theme.foreground,
@@ -245,7 +261,7 @@ mod tests {
     use crate::cli::{DisplayOptions, StartupRadix};
     use crate::color::Rgb;
     use crate::color_engine::ColorHarmonyMode;
-    use crate::render::binary_clock::{ClockBase, ClockOrientation};
+    use crate::render::binary_clock::{BinaryStyle, ClockBase, ClockOrientation};
     use crate::theme::Theme;
     use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers};
 
@@ -360,6 +376,58 @@ mod tests {
             }
         ));
         assert_eq!(mode.renderer.orientation(), ClockOrientation::Horizontal);
+    }
+
+    #[test]
+    fn s_cycles_binary_style() {
+        let mut mode = ClockMode::new(
+            StartupRadix::Binary,
+            display_options(None, ColorHarmonyMode::Triadic),
+        )
+        .expect("clock mode");
+        let key = KeyEvent {
+            code: KeyCode::Char('s'),
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+
+        let control = mode.handle_key(key);
+
+        assert!(matches!(
+            control,
+            LoopControl::Continue {
+                should_redraw: true
+            }
+        ));
+        assert_eq!(mode.renderer.binary_style(), BinaryStyle::Matrix);
+    }
+
+    #[test]
+    fn tab_is_ignored_for_fixed_binary_styles() {
+        let mut mode = ClockMode::new(
+            StartupRadix::Binary,
+            display_options(None, ColorHarmonyMode::Triadic),
+        )
+        .expect("clock mode");
+        mode.renderer.cycle_binary_style();
+        let key = KeyEvent {
+            code: KeyCode::Tab,
+            modifiers: KeyModifiers::NONE,
+            kind: KeyEventKind::Press,
+            state: KeyEventState::NONE,
+        };
+
+        let control = mode.handle_key(key);
+
+        assert!(matches!(
+            control,
+            LoopControl::Continue {
+                should_redraw: false
+            }
+        ));
+        assert_eq!(mode.renderer.binary_style(), BinaryStyle::Matrix);
+        assert_eq!(mode.renderer.orientation(), ClockOrientation::Vertical);
     }
 
     #[test]

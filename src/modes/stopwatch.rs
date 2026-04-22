@@ -146,7 +146,11 @@ impl StopwatchMode {
                 theme.foreground,
             ),
             paint_foreground(
-                &format!("layout: {}", self.renderer.orientation().label()),
+                &format!("layout: {}", self.renderer.layout_label()),
+                theme.foreground,
+            ),
+            paint_foreground(
+                &format!("binary style: {}", self.renderer.binary_style().label()),
                 theme.foreground,
             ),
             paint_foreground("limit: 63:59:59", theme.muted),
@@ -157,8 +161,9 @@ impl StopwatchMode {
             paint_foreground("b      binary", theme.foreground),
             paint_foreground("o      octal", theme.foreground),
             paint_foreground("x      hexadecimal", theme.foreground),
+            paint_foreground("s      cycle binary style", theme.foreground),
             paint_foreground(
-                "tab    toggle vertical / horizontal layout",
+                &format!("tab    {}", self.renderer.tab_help_label()),
                 theme.foreground,
             ),
             paint_foreground(
@@ -198,6 +203,10 @@ impl StopwatchMode {
                     self.renderer.set_base(ClockBase::Hexadecimal);
                     redraw()
                 }
+                's' => {
+                    self.renderer.cycle_binary_style();
+                    redraw()
+                }
                 't' => {
                     self.cycle_theme();
                     redraw()
@@ -209,8 +218,12 @@ impl StopwatchMode {
                 _ => no_redraw(),
             },
             KeyCode::Tab => {
-                self.renderer.toggle_orientation();
-                redraw()
+                if self.renderer.supports_orientation() {
+                    self.renderer.toggle_orientation();
+                    redraw()
+                } else {
+                    no_redraw()
+                }
             }
             _ => no_redraw(),
         }
