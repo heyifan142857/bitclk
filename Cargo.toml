@@ -1,6 +1,6 @@
 [package]
 name = "bitclk"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "A terminal binary clock with runtime toggle between binary and normal modes"
 license = "MIT"
